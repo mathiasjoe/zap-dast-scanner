@@ -1,0 +1,64 @@
+# ZAP Automation Framework-plan: web-skann med innlogget sesjon.
+#
+# Kjøres av scripts/run-web.sh. Flyten er:
+#   1. ZAP starter med denne planen og venter i delay-jobben.
+#   2. Playwright logger inn (utenom ZAP) og sender app-trafikk gjennom ZAP-proxyen,
+#      så ZAP plukker opp sesjonscookiene.
+#   3. Runneren lager filen traffic-done, og planen fortsetter med spider og aktivt skann.
+#
+# Dokumentasjon: https://www.zaproxy.org/docs/desktop/addons/automation-framework/
+
+env:
+  contexts:
+    - name: web
+      urls:
+        - ${WEB_TARGET}          # kun teamets app. ID-porten og Altinn-plattformen skal aldri skannes aktivt.
+      excludePaths:
+        - ".*[Ll]og[Oo]ut.*"     # ellers logger spideren seg ut midt i skannet
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  # Venter til runneren har sendt innlogget trafikk gjennom proxyen (maks 30 min).
+  - type: delay
+    parameters:
+      time: "30:00"
+      fileName: ${ZAP_REPORT_DIR}/traffic-done
+
+  - type: spider
+    parameters:
+      context: web
+      maxDuration: 10            # minutter
+
+  - type: spiderAjax
+    parameters:
+      context: web
+      maxDuration: 10            # minutter. Starter nettlesere inne i ZAP, krever minne.
+
+  - type: activeScan
+    parameters:
+      context: web
+      maxScanDurationInMins: 120 # hold under sesjonslevetiden til appen
+    policyDefinition:
+      rules:
+        - id: 40026              # DOM XSS: starter nettleser per test, ga OOM i Docker
+          threshold: off
+
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: ${ZAP_REPORT_DIR}
+      reportFile: zap-report
+      reportTitle: "ZAP web scan"
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: ${ZAP_REPORT_DIR}
+      reportFile: zap-report
+
+  # Exit-kode 1 ved funn på dette nivået eller høyere: info | low | medium | high
+  - type: exitStatus
+    parameters:
+      errorLevel: ${ZAP_FAIL_ON}

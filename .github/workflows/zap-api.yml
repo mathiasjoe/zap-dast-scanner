@@ -1,0 +1,62 @@
+# ZAP API-skann i GitHub Actions.
+#
+# Kopier denne filen til .github/workflows/ i teamets repo. Hvis blueprinten ligger i en
+# undermappe (f.eks. zap/), sett ZAP_DIR under.
+#
+# Variabler (Settings -> Secrets and variables -> Actions -> Variables):
+#   TEAM, API_PROJECT, API_BASE, OPENAPI_SPEC_URL, TOKEN_URL
+#   ZAP_FAIL_ON (valgfri, standard high), ZAP_STORAGE_ACCOUNT (valgfri, slår på felles lagring)
+# Secrets:
+#   TOKEN_BASIC_AUTH
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (kun med felles lagring)
+
+name: ZAP API scan
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 1"   # mandag 02:00 UTC
+
+permissions:
+  contents: read
+  id-token: write          # azure/login med OIDC, ingen Azure-hemmeligheter i GitHub
+
+env:
+  ZAP_DIR: .
+
+jobs:
+  api-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Logg inn i Azure
+        if: vars.ZAP_STORAGE_ACCOUNT != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Kjør API-skann
+        working-directory: ${{ env.ZAP_DIR }}
+        run: bash scripts/run-api.sh
+        env:
+          TEAM: ${{ vars.TEAM }}
+          API_PROJECT: ${{ vars.API_PROJECT }}
+          API_BASE: ${{ vars.API_BASE }}
+          OPENAPI_SPEC_URL: ${{ vars.OPENAPI_SPEC_URL }}
+          TOKEN_URL: ${{ vars.TOKEN_URL }}
+          TOKEN_BASIC_AUTH: ${{ secrets.TOKEN_BASIC_AUTH }}
+          ZAP_FAIL_ON: ${{ vars.ZAP_FAIL_ON || 'high' }}
+          ZAP_STORAGE_ACCOUNT: ${{ vars.ZAP_STORAGE_ACCOUNT }}
+
+      - name: Rapport som artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-api-report
+          path: ${{ env.ZAP_DIR }}/zap-output/
+          if-no-files-found: warn

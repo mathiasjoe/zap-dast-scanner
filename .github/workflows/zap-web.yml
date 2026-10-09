@@ -1,0 +1,72 @@
+# ZAP web-skann i GitHub Actions, med Playwright-innlogging.
+#
+# Kopier denne filen til .github/workflows/ i teamets repo. Hvis blueprinten ligger i en
+# undermappe (f.eks. zap/), sett ZAP_DIR under.
+#
+# Variabler (Settings -> Secrets and variables -> Actions -> Variables):
+#   TEAM, WEB_PROJECT, WEB_TARGET, PLAYWRIGHT_BASE_URL
+#   ZAP_FAIL_ON (valgfri, standard high), ZAP_STORAGE_ACCOUNT (valgfri, slår på felles lagring)
+# Secrets:
+#   Det innloggingen i playwright/global-setup.ts trenger (f.eks. TEST_USER_PID)
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (kun med felles lagring)
+
+name: ZAP web scan
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"   # mandag 03:00 UTC
+
+permissions:
+  contents: read
+  id-token: write          # azure/login med OIDC, ingen Azure-hemmeligheter i GitHub
+
+env:
+  ZAP_DIR: .
+
+jobs:
+  web-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Installer Playwright
+        working-directory: ${{ env.ZAP_DIR }}
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Logg inn i Azure
+        if: vars.ZAP_STORAGE_ACCOUNT != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Kjør web-skann
+        working-directory: ${{ env.ZAP_DIR }}
+        run: bash scripts/run-web.sh
+        env:
+          TEAM: ${{ vars.TEAM }}
+          WEB_PROJECT: ${{ vars.WEB_PROJECT }}
+          WEB_TARGET: ${{ vars.WEB_TARGET }}
+          PLAYWRIGHT_BASE_URL: ${{ vars.PLAYWRIGHT_BASE_URL }}
+          # Legg til det innloggingen deres trenger, f.eks.:
+          # TEST_USER_PID: ${{ secrets.TEST_USER_PID }}
+          ZAP_FAIL_ON: ${{ vars.ZAP_FAIL_ON || 'high' }}
+          ZAP_STORAGE_ACCOUNT: ${{ vars.ZAP_STORAGE_ACCOUNT }}
+
+      - name: Rapport som artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-web-report
+          path: ${{ env.ZAP_DIR }}/zap-output/
+          if-no-files-found: warn

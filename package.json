@@ -1,0 +1,12 @@
+{
+  "name": "zap-blueprint",
+  "private": true,
+  "description": "ZAP-skanning for API og web: Automation Framework-planer, Playwright-innlogging og GitHub Actions",
+  "scripts": {
+    "scan:api": "bash scripts/run-api.sh",
+    "scan:web": "bash scripts/run-web.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}
