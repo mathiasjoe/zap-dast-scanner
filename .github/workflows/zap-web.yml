@@ -1,8 +1,4 @@
 # ZAP web-skann i GitHub Actions, med Playwright-innlogging.
-#
-# Kopier denne filen til .github/workflows/ i teamets repo. Hvis blueprinten ligger i en
-# undermappe (f.eks. zap/), sett ZAP_DIR under.
-#
 # Variabler (Settings -> Secrets and variables -> Actions -> Variables):
 #   TEAM, WEB_PROJECT, WEB_TARGET, PLAYWRIGHT_BASE_URL
 #   ZAP_FAIL_ON (valgfri, standard high), ZAP_STORAGE_ACCOUNT (valgfri, slår på felles lagring)

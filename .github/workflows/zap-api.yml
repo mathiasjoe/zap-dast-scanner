@@ -1,8 +1,4 @@
 # ZAP API-skann i GitHub Actions.
-#
-# Kopier denne filen til .github/workflows/ i teamets repo. Hvis blueprinten ligger i en
-# undermappe (f.eks. zap/), sett ZAP_DIR under.
-#
 # Variabler (Settings -> Secrets and variables -> Actions -> Variables):
 #   TEAM, API_PROJECT, API_BASE, OPENAPI_SPEC_URL, TOKEN_URL
 #   ZAP_FAIL_ON (valgfri, standard high), ZAP_STORAGE_ACCOUNT (valgfri, slår på felles lagring)
