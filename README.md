@@ -5,27 +5,25 @@ Selvstendig mappe som et team kopierer inn i sitt repo. Den gir:
 - **Ett skann = én fersk ZAP-container.** Ingen server å drifte, ingen delt tilstand mellom team.
 - **Skannet er beskrevet i YAML** (ZAP Automation Framework), ikke i kode. Teamet tilpasser planen.
 - **Samme kommando lokalt og i CI.** GitHub Actions-workflows følger med, og et eksempel for Azure DevOps.
-- **Felles lagring av rapporter** i Azure Blob Storage, med sti `<team>/<prosjekt>/<tidspunkt>/`.
+- **Funnene havner i GitHub.** Rapporten lastes opp som SARIF til Security → Code scanning i teamets repo,
+  og organisasjonens Security overview gir oversikten på tvers av team.
 
 ```
 plans/zap-api.yaml            ZAP-plan for API-skann (OpenAPI-import + bearer-token)
 plans/zap-web.yaml            ZAP-plan for web-skann (venter på innlogget trafikk, spider, aktivt skann)
 scripts/run-api.sh            Kjører API-skannet
 scripts/run-web.sh            Kjører web-skannet (starter ZAP, kjører Playwright, venter på ZAP)
-scripts/upload-reports.sh     Laster opp en rapportmappe til felles lagring
 scripts/wait-for-zap.js       Venter til ZAP-proxyen svarer (brukes av web-skannet)
+scripts/upload-reports.sh     Valgfritt: laster opp en rapportmappe til Azure Blob Storage
 playwright/                   Innlogging og trafikkgenerering for web-skannet
 .github/workflows/            Workflows for GitHub Actions
 pipelines/                    Eksempel for Azure DevOps
-azure/                        Engangsoppsett av felles lagring
-legacy/                       Den gamle API-drevne varianten. Ikke i bruk, kan slettes.
 ```
 
 ## Forutsetninger
 
 - Docker (lokalt: Docker Desktop)
 - For web-skann: Node.js 20+ og `npm install` i denne mappen
-- For opplasting til felles lagring: Azure CLI og `az login`
 
 ## Kom i gang lokalt
 
@@ -45,20 +43,23 @@ Web-skann (første gang: `npm install && npx playwright install chromium`):
 bash scripts/run-web.sh
 ```
 
-Rapporter havner i `zap-output/<prosjekt>/<tidspunkt>/zap-report.html` og `.json`.
-Skriptet avslutter med exit-kode 1 hvis det er funn på nivået i `ZAP_FAIL_ON` eller høyere.
+Rapporter havner i `zap-output/<prosjekt>/<tidspunkt>/` som `zap-report.html`, `zap-report.json`
+og `zap-report.sarif`. Skriptet avslutter med exit-kode 1 hvis det er funn på nivået i `ZAP_FAIL_ON`
+eller høyere.
 
 ### Hva skjer i API-skannet
 
 1. Runneren henter et ferskt token fra `TOKEN_URL` med `TOKEN_BASIC_AUTH`.
 2. ZAP starter med `plans/zap-api.yaml`. Token legges inn som `Authorization`-header på alle forespørsler.
-3. OpenAPI-spec importeres, alle endepunkter skannes aktivt, rapport skrives, ZAP avslutter.
+3. OpenAPI-spec importeres, alle endepunkter skannes aktivt, rapporter skrives, ZAP avslutter.
 
 ### Hva skjer i web-skannet
 
 1. ZAP starter med `plans/zap-web.yaml` og venter i en delay-jobb.
-2. Playwright logger inn (`playwright/global-setup.ts`, utenom ZAP) og sender app-trafikk gjennom ZAP-proxyen (`playwright/auth-traffic.spec.ts`). ZAP plukker opp sesjonscookiene.
-3. Runneren signaliserer at trafikken er ferdig. ZAP spiderer, kjører AJAX-spider og aktivt skann, skriver rapport og avslutter.
+2. Playwright logger inn (`playwright/global-setup.ts`, utenom ZAP) og sender app-trafikk gjennom
+   ZAP-proxyen (`playwright/auth-traffic.spec.ts`). ZAP plukker opp sesjonscookiene.
+3. Runneren signaliserer at trafikken er ferdig. ZAP spiderer, kjører AJAX-spider og aktivt skann,
+   skriver rapporter og avslutter.
 
 Innloggingen i `global-setup.ts` er en mal. Hvert team fyller inn stegene for sin app og legger
 testbruker-data i `.env` lokalt og som secrets i CI. Sett `PLAYWRIGHT_HEADED=1` for å se nettleseren.
@@ -71,44 +72,51 @@ testbruker-data i `.env` lokalt og som secrets i CI. Sett `PLAYWRIGHT_HEADED=1` 
 
    | Type | Navn | Brukes av |
    |---|---|---|
-   | variabel | `TEAM` | begge |
    | variabel | `API_PROJECT`, `API_BASE`, `OPENAPI_SPEC_URL`, `TOKEN_URL` | API |
    | secret | `TOKEN_BASIC_AUTH` | API |
    | variabel | `WEB_PROJECT`, `WEB_TARGET`, `PLAYWRIGHT_BASE_URL` | web |
    | secret | det innloggingen trenger, f.eks. `TEST_USER_PID` | web |
-   | variabel | `ZAP_FAIL_ON` (valgfri) | begge |
-   | variabel | `ZAP_STORAGE_ACCOUNT` (valgfri, slår på felles lagring) | begge |
-   | secret | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | felles lagring |
+   | variabel | `ZAP_FAIL_ON` (valgfri, standard `high`) | begge |
 
 3. Trykk «Run workflow» under Actions, eller vent på den ukentlige kjøringen.
 
-Rapporten ligger alltid som artifact på kjøringen, og i felles lagring hvis `ZAP_STORAGE_ACCOUNT` er satt.
 Ikke kjør aktive skann på pull requests. De tar lang tid og belaster testmiljøet.
 
-## Felles lagring i Azure
+### Funnene i Security-fanen
 
-Engangsoppsett, gjøres av den som eier Azure-ressursene:
+Workflowen laster opp `zap-report.sarif` med `github/codeql-action/upload-sarif`. Da får dere:
 
-```bash
-ZAP_STORAGE_ACCOUNT=<globalt unikt navn> bash azure/setup-storage.sh
-```
+- Alle funn under **Security → Code scanning** i repoet, med beskrivelse, URL og løsningsforslag fra ZAP.
+- **Dedup mellom kjøringer.** Et funn som allerede er åpent blir ikke opprettet på nytt, og funn som
+  forsvinner lukkes automatisk.
+- **Triage i GitHub.** Falske positiver avvises der, med begrunnelse, og holder seg avvist i senere kjøringer.
+- **Oversikt på tvers av team** under organisasjonens Security → Overview.
 
-Skriptet lager ressursgruppe, storage account, container `zap-reports` uten anonym tilgang,
-soft delete, lifecycle-policy (cool etter 90 dager, slettes etter 365), en app-registrering som
-GitHub Actions logger inn som via OIDC, og en Entra-gruppe for lesetilgang. Det skriver ut
-verdiene som skal inn i GitHub.
+API- og web-skann lastes opp med hver sin `category`, så de lever side om side. Opplastingen kjører
+også når skannet feiler på funn.
 
-Per repo som skal laste opp:
+Code scanning er gratis for offentlige repoer. Private repoer trenger GitHub Code Security
+(tidligere GitHub Advanced Security) på organisasjonen.
 
-```bash
-bash azure/add-github-repo.sh <github-org> <repo>
-```
+HTML- og JSON-rapporten ligger i tillegg som artifact på hver kjøring.
 
-Lesetilgang: legg folk i Entra-gruppen `zap-report-readers`. Rapportene åpnes i Azure-portalen
-eller Storage Explorer under `zap-reports/<team>/<prosjekt>/<tidspunkt>/`.
+## Valgfritt: rapporter i Azure Blob Storage
 
-Utviklere som vil laste opp fra egen PC setter `ZAP_STORAGE_ACCOUNT` i `.env`, kjører `az login`
-og trenger Storage Blob Data Contributor på containeren.
+Hvis dere også vil ha rapportfilene samlet i Azure, laster runneren dem opp når `ZAP_STORAGE_ACCOUNT`
+er satt. Sti i lagringen: `<container>/<TEAM>/<prosjekt>/<tidspunkt>/`. Infrastrukturen settes opp
+utenfor dette repoet. Det som må finnes:
+
+- En storage account med en blob-container, standardnavn `zap-reports` (overstyres med
+  `ZAP_STORAGE_CONTAINER`). Anonym tilgang bør være av.
+- En identitet GitHub Actions kan logge inn som via OIDC: en app-registrering eller user-assigned
+  managed identity med en federated credential per repo
+  (`repo:<org>/<repo>:ref:refs/heads/main`), og rollen **Storage Blob Data Contributor** på containeren.
+- I GitHub: secrets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` og variablene
+  `TEAM` og `ZAP_STORAGE_ACCOUNT`. Legges de på organisasjonsnivå, slipper teamene å gjøre det selv.
+- De som skal lese rapportene trenger **Storage Blob Data Reader** på containeren.
+
+Lokalt: sett `TEAM` og `ZAP_STORAGE_ACCOUNT` i `.env`, kjør `az login`, og ha Storage Blob Data
+Contributor på containeren.
 
 ## Tilpasse planene
 
@@ -119,11 +127,12 @@ Planene i `plans/` er vanlige YAML-filer. Det vanligste å endre:
   infrastruktur og skal aldri skannes aktivt fra et teams pipeline.
 - **Regler.** `policyDefinition.rules` slår av eller justerer enkeltregler. DOM XSS (40026) er av
   fordi den starter en nettleser per test og ga OOM i Docker.
-- **Kjente falske positiver.** Legg til en `alertFilter`-jobb før rapporten. Da er teamets triage
-  versjonert sammen med planen.
+- **Kjente falske positiver.** Avvis dem i Security-fanen, eller legg til en `alertFilter`-jobb før
+  rapportene hvis de ikke skal i rapporten i det hele tatt.
 - **Varighet.** `maxDuration` på spider-jobbene og `maxScanDurationInMins` på aktivt skann.
   Web-skann bør være kortere enn sesjonslevetiden til appen, ellers fortsetter ZAP uautentisert.
-- **SARIF.** Fjern kommentaren på rapport-jobben med `sarif-json` for å laste opp til GitHub code scanning.
+- **Feile eller ikke.** `ZAP_FAIL_ON` styrer hvilket nivå som gir rød kjøring. Skal kjøringen aldri
+  feile på funn, fjern `exitStatus`-jobben. Funnene havner i Security-fanen uansett.
 
 Dokumentasjon: https://www.zaproxy.org/docs/desktop/addons/automation-framework/
 
@@ -131,5 +140,5 @@ Dokumentasjon: https://www.zaproxy.org/docs/desktop/addons/automation-framework/
 
 - ZAP kjører som egen bruker i containeren. Runneren gjør rapportmappen skrivbar for alle før start.
 - Web-skannet eksponerer ZAP-proxyen kun på `127.0.0.1:${ZAP_PORT}` på maskinen som kjører skannet.
-- `legacy/` inneholder den gamle varianten som styrte ZAP via API fra Node-skript. Den fungerer
-  fortsatt mot en ZAP-daemon, men vedlikeholdes ikke.
+- ZAP gir SARIF-rapporten sin egen filendelse. Runneren gir den fast navn `zap-report.sarif`
+  så workflowen alltid finner den.

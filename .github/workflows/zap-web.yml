@@ -1,10 +1,12 @@
-# ZAP web-skann i GitHub Actions, med Playwright-innlogging.
+# ZAP web-skann i GitHub Actions, med Playwright-innlogging. Funnene havner under Security -> Code scanning.
+#
 # Variabler (Settings -> Secrets and variables -> Actions -> Variables):
-#   TEAM, WEB_PROJECT, WEB_TARGET, PLAYWRIGHT_BASE_URL
-#   ZAP_FAIL_ON (valgfri, standard high), ZAP_STORAGE_ACCOUNT (valgfri, slår på felles lagring)
+#   WEB_PROJECT, WEB_TARGET, PLAYWRIGHT_BASE_URL
+#   ZAP_FAIL_ON (valgfri, standard high)
+#   TEAM og ZAP_STORAGE_ACCOUNT (valgfrie, kun hvis rapportene også skal til Azure Blob Storage)
 # Secrets:
 #   Det innloggingen i playwright/global-setup.ts trenger (f.eks. TEST_USER_PID)
-#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (kun med felles lagring)
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (kun med Blob Storage)
 
 name: ZAP web scan
 
@@ -15,10 +17,12 @@ on:
 
 permissions:
   contents: read
-  id-token: write          # azure/login med OIDC, ingen Azure-hemmeligheter i GitHub
+  security-events: write   # upload-sarif til code scanning
+  actions: read            # trengs av upload-sarif i private repoer
+  id-token: write          # azure/login med OIDC (kun med Blob Storage)
 
 env:
-  ZAP_DIR: .
+  ZAP_DIR: .               # mappa blueprinten ligger i, f.eks. "zap" hvis den er en undermappe
 
 jobs:
   web-scan:
@@ -50,14 +54,22 @@ jobs:
         working-directory: ${{ env.ZAP_DIR }}
         run: bash scripts/run-web.sh
         env:
-          TEAM: ${{ vars.TEAM }}
           WEB_PROJECT: ${{ vars.WEB_PROJECT }}
           WEB_TARGET: ${{ vars.WEB_TARGET }}
           PLAYWRIGHT_BASE_URL: ${{ vars.PLAYWRIGHT_BASE_URL }}
           # Legg til det innloggingen deres trenger, f.eks.:
           # TEST_USER_PID: ${{ secrets.TEST_USER_PID }}
           ZAP_FAIL_ON: ${{ vars.ZAP_FAIL_ON || 'high' }}
+          TEAM: ${{ vars.TEAM }}
           ZAP_STORAGE_ACCOUNT: ${{ vars.ZAP_STORAGE_ACCOUNT }}
+
+      # Kjører også når skannet feiler på funn. Funnene vises under Security -> Code scanning.
+      - name: Last opp funn til GitHub code scanning
+        if: always() && hashFiles(format('{0}/{1}/zap-report.sarif', env.ZAP_DIR, env.ZAP_REPORT_DIR)) != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ env.ZAP_DIR }}/${{ env.ZAP_REPORT_DIR }}/zap-report.sarif
+          category: zap-web
 
       - name: Rapport som artifact
         if: always()

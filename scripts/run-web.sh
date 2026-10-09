@@ -72,6 +72,13 @@ docker logs -f "$ZAP_CONTAINER" || true
 status="$(docker wait "$ZAP_CONTAINER")"
 rm -f "${OUT_DIR}/traffic-done"
 
+# ZAP legger egen filendelse på SARIF-rapporten. Gi den fast navn for upload-sarif.
+for sarif in "${OUT_DIR}"/zap-report.sarif.*; do
+  if [[ -e "$sarif" ]]; then
+    mv -f "$sarif" "${OUT_DIR}/zap-report.sarif"
+  fi
+done
+
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
   echo "ZAP_REPORT_DIR=${OUT_DIR}" >> "$GITHUB_ENV"
 fi

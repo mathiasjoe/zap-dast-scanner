@@ -44,6 +44,12 @@ jobs:
         - id: 40026              # DOM XSS: irrelevant for API og starter nettleser (OOM i Docker)
           threshold: off
 
+  # Rapporter. SARIF-filen lastes opp til GitHub code scanning av workflowen.
+  - type: report
+    parameters:
+      template: sarif-json
+      reportDir: ${ZAP_REPORT_DIR}
+      reportFile: zap-report.sarif
   - type: report
     parameters:
       template: traditional-html
@@ -55,13 +61,6 @@ jobs:
       template: traditional-json
       reportDir: ${ZAP_REPORT_DIR}
       reportFile: zap-report
-
-  # SARIF for GitHub code scanning. Fjern kommentaren når dere vil ta det i bruk.
-  # - type: report
-  #   parameters:
-  #     template: sarif-json
-  #     reportDir: ${ZAP_REPORT_DIR}
-  #     reportFile: zap-report
 
   # Exit-kode 1 ved funn på dette nivået eller høyere: info | low | medium | high
   - type: exitStatus
