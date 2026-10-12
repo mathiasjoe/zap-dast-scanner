@@ -13,7 +13,7 @@ name: ZAP API scan
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 2 * * 1"   # mandag 02:00 UTC
+#    - cron: "0 2 * * 1"   # mandag 02:00 UTC
 
 permissions:
   contents: read
