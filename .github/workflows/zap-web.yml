@@ -12,8 +12,9 @@ name: ZAP web scan
 
 on:
   workflow_dispatch:
-  schedule:
- #   - cron: "0 3 * * 1"   # mandag 03:00 UTC
+  # Fjern # på begge linjene for å slå på.
+  # schedule:
+  #   - cron: "0 3 * * 1"   # mandag 03:00 UTC
 
 permissions:
   contents: read
@@ -58,7 +59,7 @@ jobs:
           WEB_TARGET: ${{ vars.WEB_TARGET }}
           PLAYWRIGHT_BASE_URL: ${{ vars.PLAYWRIGHT_BASE_URL }}
           # Legg til det innloggingen deres trenger, f.eks.:
-          # TEST_USER_PID: ${{ secrets.TEST_USER_PID }}
+          TEST_USER_PID: ${{ secrets.TEST_USER_PID }}
           ZAP_FAIL_ON: ${{ vars.ZAP_FAIL_ON || 'high' }}
           TEAM: ${{ vars.TEAM }}
           ZAP_STORAGE_ACCOUNT: ${{ vars.ZAP_STORAGE_ACCOUNT }}
