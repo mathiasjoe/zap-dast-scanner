@@ -2,7 +2,6 @@
 #
 # Variabler (Settings -> Secrets and variables -> Actions -> Variables):
 #   WEB_PROJECT, WEB_TARGET, PLAYWRIGHT_BASE_URL
-#   ZAP_FAIL_ON (valgfri, standard high)
 #   TEAM og ZAP_STORAGE_ACCOUNT (valgfrie, kun hvis rapportene også skal til Azure Blob Storage)
 # Secrets:
 #   Det innloggingen i playwright/global-setup.ts trenger (f.eks. TEST_USER_PID)
@@ -60,7 +59,6 @@ jobs:
           PLAYWRIGHT_BASE_URL: ${{ vars.PLAYWRIGHT_BASE_URL }}
           # Legg til det innloggingen deres trenger, f.eks.:
           TEST_USER_PID: ${{ secrets.TEST_USER_PID }}
-          ZAP_FAIL_ON: ${{ vars.ZAP_FAIL_ON || 'high' }}
           TEAM: ${{ vars.TEAM }}
           ZAP_STORAGE_ACCOUNT: ${{ vars.ZAP_STORAGE_ACCOUNT }}
 

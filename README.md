@@ -44,8 +44,8 @@ bash scripts/run-web.sh
 ```
 
 Rapporter havner i `zap-output/<prosjekt>/<tidspunkt>/` som `zap-report.html`, `zap-report.json`
-og `zap-report.sarif`. Skriptet avslutter med exit-kode 1 hvis det er funn på nivået i `ZAP_FAIL_ON`
-eller høyere.
+og `zap-report.sarif`. Skriptet avslutter med exit-kode 1 hvis det er funn på nivå high eller høyere.
+Terskelen settes i `exitStatus`-jobben i planen.
 
 ### Hva skjer i API-skannet
 
@@ -76,7 +76,6 @@ testbruker-data i `.env` lokalt og som secrets i CI. Sett `PLAYWRIGHT_HEADED=1` 
    | secret | `TOKEN_BASIC_AUTH` | API |
    | variabel | `WEB_PROJECT`, `WEB_TARGET`, `PLAYWRIGHT_BASE_URL` | web |
    | secret | det innloggingen trenger, f.eks. `TEST_USER_PID` | web |
-   | variabel | `ZAP_FAIL_ON` (valgfri, standard `high`) | begge |
 
 3. Trykk «Run workflow» under Actions, eller vent på den ukentlige kjøringen.
 
@@ -131,13 +130,16 @@ Planene i `plans/` er vanlige YAML-filer. Det vanligste å endre:
   rapportene hvis de ikke skal i rapporten i det hele tatt.
 - **Varighet.** `maxDuration` på spider-jobbene og `maxScanDurationInMins` på aktivt skann.
   Web-skann bør være kortere enn sesjonslevetiden til appen, ellers fortsetter ZAP uautentisert.
-- **Feile eller ikke.** `ZAP_FAIL_ON` styrer hvilket nivå som gir rød kjøring. Skal kjøringen aldri
-  feile på funn, fjern `exitStatus`-jobben. Funnene havner i Security-fanen uansett.
+- **Feile eller ikke.** `errorLevel` i `exitStatus`-jobben styrer hvilket nivå som gir rød kjøring:
+  `info`, `low`, `medium` eller `high`. Miljøvariabler virker ikke i den jobben, så verdien endres
+  direkte i planen. Skal kjøringen aldri feile på funn, fjern jobben. Funnene havner i Security-fanen uansett.
 
 Dokumentasjon: https://www.zaproxy.org/docs/desktop/addons/automation-framework/
 
 ## Notater
 
+- Planene har `failOnWarning: true`. Et feilstavet parameter eller en ugyldig verdi stopper planen med
+  en tydelig melding i loggen, i stedet for at ZAP skanner videre med feil oppsett.
 - ZAP kjører som egen bruker i containeren. Runneren gjør rapportmappen skrivbar for alle før start.
 - Web-skannet eksponerer ZAP-proxyen kun på `127.0.0.1:${ZAP_PORT}` på maskinen som kjører skannet.
 - ZAP gir SARIF-rapporten sin egen filendelse. Runneren gir den fast navn `zap-report.sarif`

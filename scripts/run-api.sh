@@ -7,7 +7,7 @@ set -euo pipefail
 # Nødvendige variabler (fra .env eller miljøet):
 #   API_PROJECT, API_BASE, OPENAPI_SPEC_URL, TOKEN_URL, TOKEN_BASIC_AUTH
 # Valgfrie:
-#   TEAM, ZAP_FAIL_ON, ZAP_STORAGE_ACCOUNT, ZAP_IMAGE, ZAP_DOCKER_MEMORY
+#   TEAM, ZAP_STORAGE_ACCOUNT, ZAP_IMAGE, ZAP_DOCKER_MEMORY
 
 ZAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ZAP_DIR"
@@ -24,10 +24,8 @@ fi
 : "${OPENAPI_SPEC_URL:?Mangler OPENAPI_SPEC_URL (URL til OpenAPI/Swagger-spec)}"
 : "${TOKEN_URL:?Mangler TOKEN_URL (endepunkt som returnerer bearer-token)}"
 : "${TOKEN_BASIC_AUTH:?Mangler TOKEN_BASIC_AUTH ('Basic <base64>')}"
-: "${ZAP_FAIL_ON:=high}"
 : "${ZAP_IMAGE:=zaproxy/zap-stable}"
-: "${ZAP_DOCKER_MEMORY:=4g}"
-export ZAP_FAIL_ON
+: "${ZAP_DOCKER_MEMORY:=8g}"   # ZAP setter Java-heap til 1/4 av vertens minne, så grensen må ha god margin
 
 TS="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
 OUT_DIR="zap-output/${API_PROJECT}/${TS}"
@@ -51,7 +49,7 @@ set +e
 docker run --rm --memory "$ZAP_DOCKER_MEMORY" \
   -v "${ZAP_DIR}/plans:/zap/wrk/plans:ro" \
   -v "${ZAP_DIR}/zap-output:/zap/wrk/zap-output" \
-  -e TOKEN -e API_BASE -e OPENAPI_SPEC_URL -e ZAP_REPORT_DIR -e ZAP_FAIL_ON \
+  -e TOKEN -e API_BASE -e OPENAPI_SPEC_URL -e ZAP_REPORT_DIR \
   "$ZAP_IMAGE" zap.sh -cmd -autorun /zap/wrk/plans/zap-api.yaml
 status=$?
 set -e
@@ -72,8 +70,8 @@ if [[ -n "${ZAP_STORAGE_ACCOUNT:-}" ]]; then
 fi
 
 case "$status" in
-  0) echo "Ferdig: ingen funn på nivå ${ZAP_FAIL_ON} eller høyere. Rapport: ${OUT_DIR}" ;;
-  1) echo "Ferdig: funn på nivå ${ZAP_FAIL_ON} eller høyere. Rapport: ${OUT_DIR}" >&2 ;;
+  0) echo "Ferdig: ingen funn over terskelen i planen. Rapport: ${OUT_DIR}" ;;
+  1) echo "Ferdig: funn på eller over terskelen i planen (exitStatus). Rapport: ${OUT_DIR}" >&2 ;;
   2) echo "Ferdig med advarsler fra planen (se loggen over). Rapport: ${OUT_DIR}"; status=0 ;;
   *) echo "ZAP avsluttet med exit-kode ${status}" >&2 ;;
 esac

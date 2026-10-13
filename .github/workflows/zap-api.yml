@@ -2,7 +2,6 @@
 #
 # Variabler (Settings -> Secrets and variables -> Actions -> Variables):
 #   API_PROJECT, API_BASE, OPENAPI_SPEC_URL, TOKEN_URL
-#   ZAP_FAIL_ON (valgfri, standard high)
 #   TEAM og ZAP_STORAGE_ACCOUNT (valgfrie, kun hvis rapportene også skal til Azure Blob Storage)
 # Secrets:
 #   TOKEN_BASIC_AUTH
@@ -50,7 +49,6 @@ jobs:
           OPENAPI_SPEC_URL: ${{ vars.OPENAPI_SPEC_URL }}
           TOKEN_URL: ${{ vars.TOKEN_URL }}
           TOKEN_BASIC_AUTH: ${{ secrets.TOKEN_BASIC_AUTH }}
-          ZAP_FAIL_ON: ${{ vars.ZAP_FAIL_ON || 'high' }}
           TEAM: ${{ vars.TEAM }}
           ZAP_STORAGE_ACCOUNT: ${{ vars.ZAP_STORAGE_ACCOUNT }}
 

@@ -17,7 +17,7 @@ env:
         - ".*[Ll]og[Oo]ut.*"     # ellers logger spideren seg ut midt i skannet
   parameters:
     failOnError: true
-    failOnWarning: false
+    failOnWarning: true      # stopp ved f.eks. feilstavet parameter, i stedet for å skanne videre feil
     progressToStdout: true
 
 jobs:
@@ -64,7 +64,8 @@ jobs:
       reportDir: ${ZAP_REPORT_DIR}
       reportFile: zap-report
 
-  # Exit-kode 1 ved funn på dette nivået eller høyere: info | low | medium | high
+  # Exit-kode 1 ved funn på dette nivået eller høyere: info | low | medium | high.
+  # Miljøvariabler virker ikke her, endre verdien direkte.
   - type: exitStatus
     parameters:
-      errorLevel: ${ZAP_FAIL_ON}
+      errorLevel: high

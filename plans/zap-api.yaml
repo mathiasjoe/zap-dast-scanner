@@ -12,7 +12,7 @@ env:
         - ${API_BASE}            # alt under denne URL-en er i scope, ingenting annet
   parameters:
     failOnError: true
-    failOnWarning: false
+    failOnWarning: true      # stopp ved f.eks. feilstavet parameter, i stedet for å skanne videre feil
     progressToStdout: true
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
         matchType: req_header
         matchString: Authorization
         matchRegex: false
-        replacement: "Bearer ${TOKEN}"
+        replacementString: "Bearer ${TOKEN}"
         tokenProcessing: false
 
   # Importerer OpenAPI-spec og legger alle endepunkter i sites-treet.
@@ -62,7 +62,8 @@ jobs:
       reportDir: ${ZAP_REPORT_DIR}
       reportFile: zap-report
 
-  # Exit-kode 1 ved funn på dette nivået eller høyere: info | low | medium | high
+  # Exit-kode 1 ved funn på dette nivået eller høyere: info | low | medium | high.
+  # Miljøvariabler virker ikke her, endre verdien direkte.
   - type: exitStatus
     parameters:
-      errorLevel: ${ZAP_FAIL_ON}
+      errorLevel: high

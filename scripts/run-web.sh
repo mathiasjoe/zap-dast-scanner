@@ -11,7 +11,7 @@ set -euo pipefail
 # Nødvendige variabler (fra .env eller miljøet):
 #   WEB_PROJECT, WEB_TARGET, PLAYWRIGHT_BASE_URL (+ det innloggingen i playwright/global-setup.ts trenger)
 # Valgfrie:
-#   TEAM, ZAP_FAIL_ON, ZAP_STORAGE_ACCOUNT, ZAP_IMAGE, ZAP_DOCKER_MEMORY, ZAP_PORT,
+#   TEAM, ZAP_STORAGE_ACCOUNT, ZAP_IMAGE, ZAP_DOCKER_MEMORY, ZAP_PORT,
 #   PLAYWRIGHT_CONFIG, PLAYWRIGHT_TRAFFIC_SPEC, PLAYWRIGHT_STORAGE_STATE, PLAYWRIGHT_HEADED
 
 ZAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -27,16 +27,15 @@ fi
 : "${WEB_PROJECT:?Mangler WEB_PROJECT (navn på appen, brukes i rapportstien)}"
 : "${WEB_TARGET:?Mangler WEB_TARGET (base-URL som skal skannes)}"
 : "${PLAYWRIGHT_BASE_URL:?Mangler PLAYWRIGHT_BASE_URL (URL det logges inn på)}"
-: "${ZAP_FAIL_ON:=high}"
 : "${ZAP_IMAGE:=zaproxy/zap-stable}"
-: "${ZAP_DOCKER_MEMORY:=4g}"
+: "${ZAP_DOCKER_MEMORY:=8g}"   # ZAP setter Java-heap til 1/4 av vertens minne, så grensen må ha god margin
 : "${ZAP_PORT:=8080}"
 : "${PLAYWRIGHT_CONFIG:=playwright/playwright.config.ts}"
 : "${PLAYWRIGHT_TRAFFIC_SPEC:=playwright/auth-traffic.spec.ts}"
 : "${PLAYWRIGHT_STORAGE_STATE:=playwright/auth.json}"
 ZAP_URL="http://127.0.0.1:${ZAP_PORT}"
 ZAP_CONTAINER="zap-web-$$"
-export ZAP_FAIL_ON ZAP_URL PLAYWRIGHT_STORAGE_STATE
+export ZAP_URL PLAYWRIGHT_STORAGE_STATE
 
 TS="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
 OUT_DIR="zap-output/${WEB_PROJECT}/${TS}"
@@ -54,7 +53,7 @@ docker run -d --name "$ZAP_CONTAINER" --memory "$ZAP_DOCKER_MEMORY" \
   -p "127.0.0.1:${ZAP_PORT}:8080" \
   -v "${ZAP_DIR}/plans:/zap/wrk/plans:ro" \
   -v "${ZAP_DIR}/zap-output:/zap/wrk/zap-output" \
-  -e WEB_TARGET -e ZAP_REPORT_DIR -e ZAP_FAIL_ON \
+  -e WEB_TARGET -e ZAP_REPORT_DIR \
   "$ZAP_IMAGE" zap.sh -cmd -host 0.0.0.0 -port 8080 \
     -config api.disablekey=true \
     -config "api.addrs.addr.name=.*" \
@@ -88,8 +87,8 @@ if [[ -n "${ZAP_STORAGE_ACCOUNT:-}" ]]; then
 fi
 
 case "$status" in
-  0) echo "Ferdig: ingen funn på nivå ${ZAP_FAIL_ON} eller høyere. Rapport: ${OUT_DIR}" ;;
-  1) echo "Ferdig: funn på nivå ${ZAP_FAIL_ON} eller høyere. Rapport: ${OUT_DIR}" >&2 ;;
+  0) echo "Ferdig: ingen funn over terskelen i planen. Rapport: ${OUT_DIR}" ;;
+  1) echo "Ferdig: funn på eller over terskelen i planen (exitStatus). Rapport: ${OUT_DIR}" >&2 ;;
   2) echo "Ferdig med advarsler fra planen (se loggen over). Rapport: ${OUT_DIR}"; status=0 ;;
   *) echo "ZAP avsluttet med exit-kode ${status}" >&2 ;;
 esac
