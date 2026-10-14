@@ -83,10 +83,18 @@ Ikke kjør aktive skann på pull requests. De tar lang tid og belaster testmilj�
 
 ### Funnene i Security-fanen
 
-Workflowen laster opp `zap-report.sarif` med `github/codeql-action/upload-sarif`. Code scanning krever at
-hvert funn peker på en fil i repoet, mens ZAP oppgir URL-en som ble testet. Derfor skriver
-`scripts/sarif-for-github.sh` om filen først: hvert funn får pseudostien `dast/<host>/<path>`, og URL-en
-står øverst i meldingen. Stien finnes ikke som fil, og det er greit. Da får dere:
+Workflowen laster opp `zap-report.sarif` med `github/codeql-action/upload-sarif`, etter at
+`scripts/sarif-for-github.sh` har skrevet den om:
+
+- **Ett funn per regel.** ZAP rapporterer samme feil én gang per adresse. Skriptet slår dem sammen,
+  og adressene står som liste i meldingen, med angrep og bevis der ZAP har det. Listen kappes ved
+  100 adresser, resten står i HTML-rapporten.
+- **Pseudosti.** Code scanning krever at funn peker på en fil i repoet. Hvert funn får stien
+  `dast/<regel-id>-<regelnavn>`. Den finnes ikke som fil, og det er greit.
+- **Alvorlighetsgrad.** ZAPs risiko settes som `security-severity` på regelen, så GitHub viser
+  High, Medium eller Low. Informational vises som Note.
+
+Da får dere:
 
 - Alle funn under **Security → Code scanning** i repoet, med beskrivelse, URL og løsningsforslag fra ZAP.
 - **Dedup mellom kjøringer.** Et funn som allerede er åpent blir ikke opprettet på nytt, og funn som
