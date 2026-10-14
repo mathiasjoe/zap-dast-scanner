@@ -7,7 +7,7 @@ set -euo pipefail
 # Nødvendige variabler (fra .env eller miljøet):
 #   API_PROJECT, API_BASE, OPENAPI_SPEC_URL, TOKEN_URL, TOKEN_BASIC_AUTH
 # Valgfrie:
-#   TEAM, ZAP_STORAGE_ACCOUNT, ZAP_IMAGE, ZAP_DOCKER_MEMORY
+#   ZAP_IMAGE, ZAP_DOCKER_MEMORY
 
 ZAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ZAP_DIR"
@@ -63,10 +63,6 @@ done
 
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
   echo "ZAP_REPORT_DIR=${OUT_DIR}" >> "$GITHUB_ENV"
-fi
-
-if [[ -n "${ZAP_STORAGE_ACCOUNT:-}" ]]; then
-  bash scripts/upload-reports.sh "$OUT_DIR"
 fi
 
 case "$status" in

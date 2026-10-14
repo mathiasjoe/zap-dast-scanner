@@ -11,7 +11,7 @@ set -euo pipefail
 # Nødvendige variabler (fra .env eller miljøet):
 #   WEB_PROJECT, WEB_TARGET, PLAYWRIGHT_BASE_URL (+ det innloggingen i playwright/global-setup.ts trenger)
 # Valgfrie:
-#   TEAM, ZAP_STORAGE_ACCOUNT, ZAP_IMAGE, ZAP_DOCKER_MEMORY, ZAP_PORT,
+#   ZAP_IMAGE, ZAP_DOCKER_MEMORY, ZAP_PORT,
 #   PLAYWRIGHT_CONFIG, PLAYWRIGHT_TRAFFIC_SPEC, PLAYWRIGHT_STORAGE_STATE, PLAYWRIGHT_HEADED
 
 ZAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -80,10 +80,6 @@ done
 
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
   echo "ZAP_REPORT_DIR=${OUT_DIR}" >> "$GITHUB_ENV"
-fi
-
-if [[ -n "${ZAP_STORAGE_ACCOUNT:-}" ]]; then
-  bash scripts/upload-reports.sh "$OUT_DIR"
 fi
 
 case "$status" in

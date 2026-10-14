@@ -1,10 +1,8 @@
-# Eksempel for Azure DevOps. Tilsvarer .github/workflows/zap-api.yml.
+# Eksempel for Azure DevOps. Tilsvarer .github/workflows/zap-api.yml, men uten opplasting
+# til code scanning (det finnes bare i GitHub). Rapportene publiseres som pipeline-artifact.
 #
-# Variabelgruppen zap-secrets (koblet til Key Vault) må inneholde:
-#   TEAM, API_PROJECT, API_BASE, OPENAPI_SPEC_URL, TOKEN_URL, TOKEN_BASIC_AUTH (secret)
-#   ZAP_STORAGE_ACCOUNT (valgfri, slår på opplasting til felles lagring)
-# Service connection (workload identity federation) trenger Storage Blob Data Contributor
-# på containeren zap-reports.
+# Variabelgruppen zap-secrets (gjerne koblet til Key Vault) må inneholde:
+#   API_PROJECT, API_BASE, OPENAPI_SPEC_URL, TOKEN_URL, TOKEN_BASIC_AUTH (secret)
 
 trigger: none
 
@@ -25,21 +23,14 @@ variables:
 steps:
   - checkout: self
 
-  - task: AzureCLI@2
+  - script: bash scripts/run-api.sh
     displayName: "Run API scan"
-    inputs:
-      azureSubscription: "<service-connection-navn>"
-      scriptType: bash
-      scriptLocation: inlineScript
-      inlineScript: bash scripts/run-api.sh
     env:
-      TEAM: $(TEAM)
       API_PROJECT: $(API_PROJECT)
       API_BASE: $(API_BASE)
       OPENAPI_SPEC_URL: $(OPENAPI_SPEC_URL)
       TOKEN_URL: $(TOKEN_URL)
       TOKEN_BASIC_AUTH: $(TOKEN_BASIC_AUTH)
-      ZAP_STORAGE_ACCOUNT: $(ZAP_STORAGE_ACCOUNT)
 
   - publish: zap-output
     artifact: zap-output

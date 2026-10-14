@@ -3,5 +3,4 @@ zap-output/
 node_modules/
 test-results/
 .DS_Store
-azure/**
 legacy/**

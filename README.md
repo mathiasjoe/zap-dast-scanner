@@ -14,7 +14,7 @@ plans/zap-web.yaml            ZAP-plan for web-skann (venter på innlogget trafi
 scripts/run-api.sh            Kjører API-skannet
 scripts/run-web.sh            Kjører web-skannet (starter ZAP, kjører Playwright, venter på ZAP)
 scripts/wait-for-zap.js       Venter til ZAP-proxyen svarer (brukes av web-skannet)
-scripts/upload-reports.sh     Valgfritt: laster opp en rapportmappe til Azure Blob Storage
+scripts/sarif-for-github.sh   Skriver om SARIF-rapporten så GitHub code scanning godtar den (brukes av workflowene)
 playwright/                   Innlogging og trafikkgenerering for web-skannet
 .github/workflows/            Workflows for GitHub Actions
 pipelines/                    Eksempel for Azure DevOps
@@ -83,7 +83,10 @@ Ikke kjør aktive skann på pull requests. De tar lang tid og belaster testmilj�
 
 ### Funnene i Security-fanen
 
-Workflowen laster opp `zap-report.sarif` med `github/codeql-action/upload-sarif`. Da får dere:
+Workflowen laster opp `zap-report.sarif` med `github/codeql-action/upload-sarif`. Code scanning krever at
+hvert funn peker på en fil i repoet, mens ZAP oppgir URL-en som ble testet. Derfor skriver
+`scripts/sarif-for-github.sh` om filen først: hvert funn får pseudostien `dast/<host>/<path>`, og URL-en
+står øverst i meldingen. Stien finnes ikke som fil, og det er greit. Da får dere:
 
 - Alle funn under **Security → Code scanning** i repoet, med beskrivelse, URL og løsningsforslag fra ZAP.
 - **Dedup mellom kjøringer.** Et funn som allerede er åpent blir ikke opprettet på nytt, og funn som
@@ -98,24 +101,6 @@ Code scanning er gratis for offentlige repoer. Private repoer trenger GitHub Cod
 (tidligere GitHub Advanced Security) på organisasjonen.
 
 HTML- og JSON-rapporten ligger i tillegg som artifact på hver kjøring.
-
-## Valgfritt: rapporter i Azure Blob Storage
-
-Hvis dere også vil ha rapportfilene samlet i Azure, laster runneren dem opp når `ZAP_STORAGE_ACCOUNT`
-er satt. Sti i lagringen: `<container>/<TEAM>/<prosjekt>/<tidspunkt>/`. Infrastrukturen settes opp
-utenfor dette repoet. Det som må finnes:
-
-- En storage account med en blob-container, standardnavn `zap-reports` (overstyres med
-  `ZAP_STORAGE_CONTAINER`). Anonym tilgang bør være av.
-- En identitet GitHub Actions kan logge inn som via OIDC: en app-registrering eller user-assigned
-  managed identity med en federated credential per repo
-  (`repo:<org>/<repo>:ref:refs/heads/main`), og rollen **Storage Blob Data Contributor** på containeren.
-- I GitHub: secrets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` og variablene
-  `TEAM` og `ZAP_STORAGE_ACCOUNT`. Legges de på organisasjonsnivå, slipper teamene å gjøre det selv.
-- De som skal lese rapportene trenger **Storage Blob Data Reader** på containeren.
-
-Lokalt: sett `TEAM` og `ZAP_STORAGE_ACCOUNT` i `.env`, kjør `az login`, og ha Storage Blob Data
-Contributor på containeren.
 
 ## Tilpasse planene
 
