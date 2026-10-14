@@ -38,7 +38,7 @@ jobs:
   - type: activeScan
     parameters:
       context: api
-      maxScanDurationInMins: 120
+      maxScanDurationInMins: 10  # TEST: sett tilbake til 120 etter at løypa er verifisert
     policyDefinition:
       rules:
         - id: 40026              # DOM XSS: irrelevant for API og starter nettleser (OOM i Docker)
