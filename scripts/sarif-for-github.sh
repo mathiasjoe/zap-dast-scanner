@@ -22,9 +22,11 @@ fi
 command -v jq >/dev/null || { echo "jq mangler" >&2; exit 1; }
 
 MAX_URLS="${ZAP_SARIF_MAX_URLS:-100}"
+# Sett Tool navn
+TOOL_NAME="${ZAP_SARIF_TOOL_NAME:-ZAP DAST}"
 
 TMP="$(mktemp)"
-jq --argjson maxUrls "$MAX_URLS" '
+jq --argjson maxUrls "$MAX_URLS" --arg toolName "$TOOL_NAME" '
   def slug: ascii_downcase | gsub("[^a-z0-9]+"; "-") | sub("^-+"; "") | sub("-+$"; "");
   def trunc($n): if length > $n then .[:$n] + "…" else . end;
   def oneline: gsub("\\s+"; " ") | sub("^ "; "") | sub(" $"; "");
@@ -82,7 +84,7 @@ jq --argjson maxUrls "$MAX_URLS" '
               }
           )
       )
-    | .tool.driver.name = "ZAP"
+    | .tool.driver.name = $toolName
     | .tool.driver.rules = ($rules | map(
         (.defaultConfiguration.level // "none") as $l
         | .properties = ((.properties // {})
